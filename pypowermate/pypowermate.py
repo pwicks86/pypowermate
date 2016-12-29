@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import struct
+import time
 import select
 import threading
 import fcntl
@@ -87,6 +88,22 @@ class Powermate(threading.Thread):
     def set_onclick(self, listener):
         self.onclick = listener
 
+    def set_led(self, static_brightness, pulse_speed, pulse_table, pulse_on_sleep, pulse_on_wake):
+        static_brightness &= 0xff;
+        if pulse_speed < 0:
+            pulse_speed = 0
+        if pulse_speed > 510:
+            pulse_speed = 510
+        if pulse_table < 0:
+            pulse_table = 0
+        if pulse_table > 2:
+            pulse_table = 2
+        pulse_on_sleep = 0 if pulse_on_sleep else 1
+        pulse_on_wake  = 0 if pulse_on_wake else 1
+        magic = static_brightness | (pulse_speed << 8) | (pulse_table << 17) | (pulse_on_sleep << 19) | (pulse_on_wake << 20)
+        data = struct.pack(event_struct, 0, 0, 0x04, 0x01, magic)
+        os.write(self.fd, data)
+
     def run(self):
         while True:
             # wait for there to be input available
@@ -106,4 +123,11 @@ if __name__ == '__main__':
     def on_click(button_pos):
         print(button_pos)
     p = Powermate(on_turn, on_click)
+    for c in range(20):
+        for i in range(510,0, -1):
+            p.set_led(i, 100, 1, True, True)
+            time.sleep(0.01)
+        for i2 in range(0,510, 1):
+            p.set_led(i2, 100, 1, True, True)
+            time.sleep(0.01)
     # p.join()
